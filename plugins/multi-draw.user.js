@@ -78,18 +78,21 @@ var setup = (function (window, document, undefined) {
     }
 
     function draw(portal) {
-        var latlngs;
+        var latlngs, layerType = 'polyline';
 
         if (!(firstPortal && secondPortal)) return;
 
         latlngs = [];
         latlngs.push(firstPortal.ll);
-        if (portal) latlngs.push(portal.ll);
+        if (portal) {
+            latlngs.push(portal.ll);
+            layerType = 'polygon';
+        }
         latlngs.push(secondPortal.ll);
 
         window.map.fire('draw:created', {
             layer: L.geodesicPolyline(latlngs, window.plugin.drawTools.lineOptions),
-            layerType: 'polyline'
+            layerType: layerType
         });
 
         if (!window.map.hasLayer(window.plugin.drawTools.drawnItems)) {
