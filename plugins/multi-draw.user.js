@@ -114,7 +114,10 @@ var setup = (function (window, document, undefined) {
     log('First portal selected');
 
     var portal = getPortalSelected();
-    if (!portal) { return; }
+    if (!portal) {
+      alert('Select a portal to mark.');
+      return;
+    }
 
     clear();
 
@@ -133,7 +136,14 @@ var setup = (function (window, document, undefined) {
     log('Second portal selected');
 
     secondPortal = getPortalSelected();
-    if (!secondPortal || secondPortal.guid === firstPortal.guid) { return; }
+    if (!secondPortal) {
+      alert('Select a portal to mark.');
+      return;
+    }
+    if (secondPortal.guid === firstPortal.guid) {
+      alert('Select another portal to mark.');
+      return;
+    }
 
     secondPortalLink.innerText = text.B.active.text;
     secondPortalLink.title = text.B.active.tooltip;
@@ -150,7 +160,14 @@ var setup = (function (window, document, undefined) {
     log('Other portal selected');
 
     portal = getPortalSelected();
-    if (!portal || portal.guid === firstPortal.guid || portal.guid === secondPortal.guid) { return; }
+    if (!portal) {
+      alert('Select a portal to mark.');
+      return;
+    }
+    if (portal.guid === firstPortal.guid || portal.guid === secondPortal.guid) {
+      alert('Select another portal to mark.');
+      return;
+    }
 
     draw(portal);
   }
