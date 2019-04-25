@@ -24,14 +24,10 @@
 var setup = (function(window, document, undefined) {
   'use strict';
 
-  var plugin, actions, firstPortal, secondPortal, firstPortalLink,
-      secondPortalLink, types = {
-        function: 'function',
-      },
-                        classList = {
-                          active: 'active',
-                          highlighted: 'highlighted',
-                        };
+  var plugin, actions, isAutoMode, firstPortal, secondPortal,
+      previousSelectedPortal, firstPortalLink, secondPortalLink, autoModeLink,
+      types = {function: 'function'},
+      classList = {active: 'active', highlighted: 'highlighted'};
 
   plugin = function() {};
   if (typeof window.plugin !== types.function) window.plugin = function() {};
@@ -50,13 +46,34 @@ var setup = (function(window, document, undefined) {
   function clear() {
     firstPortal = false;
     secondPortal = false;
+    isAutoMode = false;
 
-    if (firstPortalLink.classList.contains(classList.highlighted)) {
-      firstPortalLink.classList.remove(classList.highlighted);
+    firstPortalLink.classList.remove(classList.highlighted);
+    secondPortalLink.classList.remove(classList.highlighted);
+    autoModeLink.classList.remove(classList.highlighted);
+  }
+
+  function toggleAutoMode() {
+    isAutoMode = !isAutoMode;
+    if (isAutoMode) {
+      autoModeLink.classList.add(classList.highlighted);
+    } else {
+      autoModeLink.classList.remove(classList.highlighted);
+      toggleMenu();
     }
+  }
 
-    if (secondPortalLink.classList.contains(classList.highlighted)) {
-      secondPortalLink.classList.remove(classList.highlighted);
+  function onPortalSelected() {
+    if (!isAutoMode) return;
+
+    var portal = getPortalSelected();
+    if (!portal) return;
+
+    if (!previousSelectedPortal ||
+        previousSelectedPortal.guid !== portal.guid) {
+      previousSelectedPortal = portal;
+      log('portal selectected > ' + portal.guid);
+      draw(portal);
     }
   }
 
@@ -109,7 +126,9 @@ var setup = (function(window, document, undefined) {
     // be equal to nth point of secont polyline or the same but one polyline is
     // reversed
 
-    if (!(firstPortal && secondPortal)) return;
+    if (!firstPortal || !secondPortal) {
+      return;
+    }
 
     latlngs = [];
     latlngs.push(firstPortal.ll);
@@ -135,10 +154,16 @@ var setup = (function(window, document, undefined) {
     }
   }
 
-  function getPortalSelected(data) {
-    if (!(selectedPortal && portals[selectedPortal])) return;
+  function getPortalSelected() {
+    if (selectedPortal) {
+      return getPortalData(portals[selectedPortal]);
+    }
+  }
 
-    return {guid: selectedPortal, ll: portals[selectedPortal].getLatLng()};
+  function getPortalData(portal) {
+    if (portal) {
+      return {guid: portal.options.guid, ll: portal.getLatLng()};
+    }
   }
 
   function log(message) {
@@ -146,8 +171,11 @@ var setup = (function(window, document, undefined) {
   }
 
   function setup() {
-    var parent, control, section, toolbar, button, clearLi, firstPortalLi,
-        secondPortalLi, otherPortalLi, clearLink, otherPortalLink;
+    var parent, control, section, toolbar, button, autoModeLi, clearLi,
+        firstPortalLi, secondPortalLi, otherPortalLi, clearLink,
+        otherPortalLink;
+
+    window.addHook('portalSelected', onPortalSelected);
 
     $('<style>')
         .prop('type', 'text/css')
@@ -177,26 +205,34 @@ var setup = (function(window, document, undefined) {
 
     firstPortalLink = document.createElement('a');
     firstPortalLink.className = 'multidraw';
-    firstPortalLink.innerText = '1';
-    firstPortalLink.title = 'Select first portal';
+    firstPortalLink.innerText = 'A';
+    firstPortalLink.title = 'Select portal base A';
     firstPortalLink.addEventListener('click', selectFirstPortal, false);
     firstPortalLi = document.createElement('li');
     firstPortalLi.appendChild(firstPortalLink);
 
     secondPortalLink = document.createElement('a');
     secondPortalLink.className = 'multidraw';
-    secondPortalLink.innerText = '2';
-    secondPortalLink.title = 'Select second portal';
+    secondPortalLink.innerText = 'B';
+    secondPortalLink.title = 'Select portal base B';
     secondPortalLink.addEventListener('click', selectSecondPortal, false);
     secondPortalLi = document.createElement('li');
     secondPortalLi.appendChild(secondPortalLink);
 
     otherPortalLink = document.createElement('a');
-    otherPortalLink.innerText = 'N';
-    otherPortalLink.title = 'Select other portal';
+    otherPortalLink.innerText = '+1';
+    otherPortalLink.title = 'Add field on selected portal';
     otherPortalLink.addEventListener('click', selectOtherPortal, false);
     otherPortalLi = document.createElement('li');
     otherPortalLi.appendChild(otherPortalLink);
+
+    autoModeLink = document.createElement('a');
+    autoModeLink.className = 'multidraw';
+    autoModeLink.innerText = 'Auto';
+    autoModeLink.title = 'Add field on each portal selection';
+    autoModeLink.addEventListener('click', toggleAutoMode, false);
+    autoModeLi = document.createElement('li');
+    autoModeLi.appendChild(autoModeLink);
 
     actions = document.createElement('ul');
     actions.className = 'leaflet-draw-actions leaflet-draw-actions-top';
@@ -204,6 +240,7 @@ var setup = (function(window, document, undefined) {
     actions.appendChild(firstPortalLi);
     actions.appendChild(secondPortalLi);
     actions.appendChild(otherPortalLi);
+    actions.appendChild(autoModeLi);
 
     section = document.createElement('div');
     section.className = 'leaflet-draw-section';
