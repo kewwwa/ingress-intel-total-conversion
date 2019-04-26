@@ -61,8 +61,8 @@ var setup = (function (window, document, undefined) {
   }
 
   function clear() {
-    firstPortal = false;
-    secondPortal = false;
+    firstPortal = null;
+    secondPortal = null;
     isAutoMode = false;
 
     if (firstMarker) {
@@ -106,43 +106,63 @@ var setup = (function (window, document, undefined) {
       alert('Select a portal to mark.');
       return;
     }
-
-    clear();
-
-    firstPortal = portal;
-    firstMarker = drawMarker(firstPortal, misc.firstPortal.markerColor);
-
-    firstPortalLink.innerText = misc.firstPortal.text.active;
-    firstPortalLink.title = misc.firstPortal.tooltip.active;
-    firstPortalLink.classList.add(classList.active);
-
-    clearLink.classList.remove(classList.hidden);
-    secondPortalLink.classList.remove(classList.hidden);
-  }
-
-  function selectSecondPortal() {
-    secondPortal = getPortalSelected();
-    if (!secondPortal) {
-      alert('Select a portal to mark.');
-      return;
-    }
-    if (secondPortal.guid === firstPortal.guid) {
+    if (firstPortal && portal.guid === firstPortal.guid || secondPortal && portal.guid === secondPortal.guid) {
       alert('Select another portal to mark.');
       return;
     }
 
-    secondPortalLink.innerText = misc.secondPortal.text.active;
-    secondPortalLink.title = misc.secondPortal.tooltip.active;
-    secondPortalLink.classList.add(classList.active);
+    if (secondPortal) {
+      moveDrawnItems(firstPortal, portal, secondPortal);
+      firstPortal = portal;
+    } else {
+      clear();
+      firstPortal = portal;
+      window.map.fire('draw:edited');
 
-    otherPortalLink.classList.remove(classList.hidden);
-    autoModeLink.classList.remove(classList.hidden);
+      firstPortalLink.innerText = misc.firstPortal.text.active;
+      firstPortalLink.title = misc.firstPortal.tooltip.active;
+      firstPortalLink.classList.add(classList.active);
+
+      clearLink.classList.remove(classList.hidden);
+      secondPortalLink.classList.remove(classList.hidden);
+    }
+
+    if (firstMarker) {
+      groups.markers.removeLayer(firstMarker);
+    }
+    firstMarker = drawMarker(portal, misc.firstPortal.markerColor);
+  }
+
+  function selectSecondPortal() {
+    var portal = getPortalSelected();
+    if (!portal) {
+      alert('Select a portal to mark.');
+      return;
+    }
+    if (firstPortal && portal.guid === firstPortal.guid || secondPortal && portal.guid === secondPortal.guid) {
+      alert('Select another portal to mark.');
+      return;
+    }
+
+    if (secondPortal) {
+      moveDrawnItems(secondPortal, portal, firstPortal);
+      secondPortal = portal;
+    } else {
+      secondPortal = portal;
+      drawLine();
+
+      secondPortalLink.innerText = misc.secondPortal.text.active;
+      secondPortalLink.title = misc.secondPortal.tooltip.active;
+      secondPortalLink.classList.add(classList.active);
+
+      otherPortalLink.classList.remove(classList.hidden);
+      autoModeLink.classList.remove(classList.hidden);
+    }
 
     if (secondMarker) {
       groups.markers.removeLayer(secondMarker);
     }
-    secondMarker = drawMarker(secondPortal, misc.secondPortal.markerColor);
-    drawLine();
+    secondMarker = drawMarker(portal, misc.secondPortal.markerColor);
   }
 
   function onPortalSelected(e) {
@@ -216,6 +236,27 @@ var setup = (function (window, document, undefined) {
         layerType: 'polyline'
       });
     }
+  }
+
+  function moveDrawnItems(oldPortal, newPortal, otherPortal) {
+    groups.links.eachLayer(function (layer) {
+      if (layer instanceof L.GeodesicPolyline || layer instanceof L.Polyline) {
+        ll = layer.getLatLngs();
+        if (ll[0].lat === oldPortal.ll.lat && ll[0].lng === oldPortal.ll.lng
+          && ll[ll.length - 1].lat === otherPortal.ll.lat && ll[ll.length - 1].lng === otherPortal.ll.lng) {
+          ll[0].lat = newPortal.ll.lat;
+          ll[0].lng = newPortal.ll.lng;
+          layer.setLatLngs(ll);
+        } else if (ll[ll.length - 1].lat === oldPortal.ll.lat && ll[ll.length - 1].lng === oldPortal.ll.lng
+          && ll[0].lat === otherPortal.ll.lat && ll[0].lng === otherPortal.ll.lng) {
+          ll[ll.length - 1].lat = newPortal.ll.lat;
+          ll[ll.length - 1].lng = newPortal.ll.lng;
+          layer.setLatLngs(ll);
+        }
+      }
+    });
+
+    window.map.fire('draw:edited');
   }
 
   function deleteExistingLine(latlngs) {
