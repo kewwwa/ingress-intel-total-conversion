@@ -24,31 +24,26 @@
 var setup = (function (window, document, undefined) {
   'use strict';
 
-  var plugin, actions, isAutoMode, firstPortal, secondPortal,
-    previousSelectedPortal, clearLink, firstPortalLink, secondPortalLink,
+  var plugin, actions, isAutoMode, portalSelectionPending, firstPortal, secondPortal,
+    firstMarker, secondMarker,
+    clearLink, firstPortalLink, secondPortalLink,
     otherPortalLink, autoModeLink,
+    groups = {
+      links: null,
+      markers: null
+    },
     classList = { active: 'active', hidden: 'hidden' },
-    text = {
-      A: {
-        init: {
-          text: 'Select portal base A',
-          tooltip: 'Click to mark selected portal'
-        },
-        active: {
-          text: 'A',
-          tooltip: 'Reset portal base A'
-        }
+    misc = {
+      firstPortal: {
+        markerColor: '#fb8500',
+        text: { init: 'Select portal base A', active: 'A' },
+        tooltip: { init: 'Click to mark selected portal', active: 'Reset portal base A' }
       },
-      B: {
-        init: {
-          text: 'Select portal base B',
-          tooltip: 'Click to mark selected portal'
-        },
-        active: {
-          text: 'B',
-          tooltip: 'Reset portal base B'
-        }
-      },
+      secondPortal: {
+        markerColor: '#9400fc',
+        text: { init: 'Select portal base B', active: 'B' },
+        tooltip: { init: 'Click to mark selected portal', active: 'Reset portal base B' }
+      }
     };
 
   plugin = function () { };
@@ -70,12 +65,21 @@ var setup = (function (window, document, undefined) {
     secondPortal = false;
     isAutoMode = false;
 
-    firstPortalLink.innerText = text.A.init.text;
-    firstPortalLink.title = text.A.init.tooltip;
+    if (firstMarker) {
+      groups.markers.removeLayer(firstMarker);
+      firstMarker = null;
+    }
+    if (secondMarker) {
+      groups.markers.removeLayer(secondMarker);
+      secondMarker = null;
+    }
+
+    firstPortalLink.innerText = misc.firstPortal.text.init;
+    firstPortalLink.title = misc.firstPortal.tooltip.init;
     firstPortalLink.classList.remove(classList.active);
 
-    secondPortalLink.innerText = text.B.init.text;
-    secondPortalLink.title = text.B.init.tooltip;
+    secondPortalLink.innerText = misc.secondPortal.text.init;
+    secondPortalLink.title = misc.secondPortal.tooltip.init;
     secondPortalLink.classList.remove(classList.active);
     secondPortalLink.classList.add(classList.hidden);
 
@@ -96,12 +100,6 @@ var setup = (function (window, document, undefined) {
     }
   }
 
-  function onPortalSelected() {
-    if (isAutoMode) {
-      selectOtherPortal();
-    }
-  }
-
   function selectFirstPortal() {
     var portal = getPortalSelected();
     if (!portal) {
@@ -112,9 +110,10 @@ var setup = (function (window, document, undefined) {
     clear();
 
     firstPortal = portal;
+    firstMarker = drawMarker(firstPortal, misc.firstPortal.markerColor);
 
-    firstPortalLink.innerText = text.A.active.text;
-    firstPortalLink.title = text.A.active.tooltip;
+    firstPortalLink.innerText = misc.firstPortal.text.active;
+    firstPortalLink.title = misc.firstPortal.tooltip.active;
     firstPortalLink.classList.add(classList.active);
 
     clearLink.classList.remove(classList.hidden);
@@ -132,14 +131,35 @@ var setup = (function (window, document, undefined) {
       return;
     }
 
-    secondPortalLink.innerText = text.B.active.text;
-    secondPortalLink.title = text.B.active.tooltip;
+    secondPortalLink.innerText = misc.secondPortal.text.active;
+    secondPortalLink.title = misc.secondPortal.tooltip.active;
     secondPortalLink.classList.add(classList.active);
 
     otherPortalLink.classList.remove(classList.hidden);
     autoModeLink.classList.remove(classList.hidden);
 
-    draw();
+    if (secondMarker) {
+      groups.markers.removeLayer(secondMarker);
+    }
+    secondMarker = drawMarker(secondPortal, misc.secondPortal.markerColor);
+    drawLine();
+  }
+
+  function onPortalSelected(e) {
+    if (!selectedPortal || !isAutoMode) { return; }
+
+    if (portalSelectionPending && e && e.selectedPortalGuid !== e.unselectedPortalGuid) {
+      clearTimeout(portalSelectionPending);
+      portalSelectionPending = null;
+    }
+
+    if (!portalSelectionPending) {
+      selectOtherPortal();
+
+      portalSelectionPending = setTimeout(() => {
+        portalSelectionPending = null;
+      }, 500);
+    }
   }
 
   function selectOtherPortal() {
@@ -153,10 +173,26 @@ var setup = (function (window, document, undefined) {
       return;
     }
 
-    draw(portal);
+    drawLine(portal);
   }
 
-  function draw(portal) {
+  function drawMarker(portal, color) {
+    var options = {
+      icon: window.plugin.drawTools.getMarkerIcon(color),
+      zIndexOffset: 2000
+    };
+
+    var marker = L.marker(portal.ll, options);
+    marker.on('click', function () { renderPortalDetails(portal.guid); });
+    marker.on('spiderfiedclick', function () { renderPortalDetails(portal.guid); });
+
+    window.registerMarkerForOMS(marker);
+    groups.markers.addLayer(marker);
+
+    return marker;
+  }
+
+  function drawLine(portal) {
     var latlngs = [];
 
     if (!firstPortal || !secondPortal) {
@@ -185,7 +221,7 @@ var setup = (function (window, document, undefined) {
   function deleteExistingLine(latlngs) {
     var line = findPolyline(latlngs);
     if (line) {
-      window.plugin.drawTools.drawnItems.removeLayer(line);
+      groups.links.removeLayer(line);
       window.map.fire('draw:deleted');
     }
 
@@ -195,7 +231,7 @@ var setup = (function (window, document, undefined) {
   function findPolyline(latlngs) {
     var matchLine, isMatch, ll, index;
 
-    window.plugin.drawTools.drawnItems.eachLayer(function (layer) {
+    groups.links.eachLayer(function (layer) {
       if (!matchLine && (layer instanceof L.GeodesicPolyline || layer instanceof L.Polyline)) {
         ll = layer.getLatLngs();
 
@@ -246,6 +282,17 @@ var setup = (function (window, document, undefined) {
     var parent, control, section, toolbar, button, autoModeLi, clearLi,
       firstPortalLi, secondPortalLi, otherPortalLi;
 
+    if (!window.plugin.drawTools) {
+      dialog({
+        title: 'Multi draw',
+        html: 'The "<a href="http://iitc.me/desktop/#plugin-draw-tools" target="_BLANK"><strong>Draw Tools</strong></a>" plugin is required.</span>',
+      });
+    }
+
+    groups.links = window.plugin.drawTools.drawnItems;
+    groups.markers = new L.FeatureGroup();
+    window.addLayerGroup('Multi draw', groups.markers, true);
+
     window.addHook('portalSelected', onPortalSelected);
 
     $('<style>')
@@ -271,15 +318,15 @@ var setup = (function (window, document, undefined) {
     clearLi.appendChild(clearLink);
 
     firstPortalLink = document.createElement('a');
-    firstPortalLink.innerText = text.A.init.text;
-    firstPortalLink.title = text.A.init.tooltip;
+    firstPortalLink.innerText = misc.firstPortal.text.init;
+    firstPortalLink.title = misc.firstPortal.tooltip.init;
     firstPortalLink.addEventListener('click', selectFirstPortal, false);
     firstPortalLi = document.createElement('li');
     firstPortalLi.appendChild(firstPortalLink);
 
     secondPortalLink = document.createElement('a');
-    secondPortalLink.innerText = text.B.init.text;
-    secondPortalLink.title = text.B.init.tooltip;
+    secondPortalLink.innerText = misc.secondPortal.text.init;
+    secondPortalLink.title = misc.secondPortal.tooltip.init;
     secondPortalLink.className = classList.hidden;
     secondPortalLink.addEventListener('click', selectSecondPortal, false);
     secondPortalLi = document.createElement('li');
