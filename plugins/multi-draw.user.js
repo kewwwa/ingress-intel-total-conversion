@@ -29,8 +29,8 @@ var setup = (function (window, document, undefined) {
     clearLink, firstPortalLink, secondPortalLink,
     otherPortalLink, autoModeLink,
     groups = {
-      links: null,
-      markers: null
+      links: undefined,
+      markers: undefined
     },
     classList = { active: 'active', hidden: 'hidden' },
     misc = {
@@ -61,33 +61,27 @@ var setup = (function (window, document, undefined) {
   }
 
   function clear() {
-    firstPortal = null;
-    secondPortal = null;
+    firstPortal = undefined;
+    secondPortal = undefined;
     isAutoMode = false;
 
     if (firstMarker) {
       groups.markers.removeLayer(firstMarker);
-      firstMarker = null;
+      firstMarker = undefined;
     }
     if (secondMarker) {
       groups.markers.removeLayer(secondMarker);
-      secondMarker = null;
+      secondMarker = undefined;
     }
 
-    firstPortalLink.innerText = misc.firstPortal.text.init;
-    firstPortalLink.title = misc.firstPortal.tooltip.init;
-    firstPortalLink.classList.remove(classList.active);
+    updateButtonState(firstPortalLink, misc.firstPortal, false);
+    updateButtonState(secondPortalLink, misc.secondPortal, false);
 
-    secondPortalLink.innerText = misc.secondPortal.text.init;
-    secondPortalLink.title = misc.secondPortal.tooltip.init;
-    secondPortalLink.classList.remove(classList.active);
     secondPortalLink.classList.add(classList.hidden);
-
-    autoModeLink.classList.remove(classList.active);
-    autoModeLink.classList.add(classList.hidden);
-
     otherPortalLink.classList.add(classList.hidden);
     clearLink.classList.add(classList.hidden);
+    autoModeLink.classList.add(classList.hidden);
+    autoModeLink.classList.remove(classList.active);
   }
 
   function toggleAutoMode() {
@@ -119,18 +113,13 @@ var setup = (function (window, document, undefined) {
       firstPortal = portal;
       window.map.fire('draw:edited');
 
-      firstPortalLink.innerText = misc.firstPortal.text.active;
-      firstPortalLink.title = misc.firstPortal.tooltip.active;
-      firstPortalLink.classList.add(classList.active);
+      updateButtonState(firstPortalLink, misc.firstPortal, true);
 
       clearLink.classList.remove(classList.hidden);
       secondPortalLink.classList.remove(classList.hidden);
     }
 
-    if (firstMarker) {
-      groups.markers.removeLayer(firstMarker);
-    }
-    firstMarker = drawMarker(portal, misc.firstPortal.markerColor);
+    firstMarker = drawMarker(portal, misc.firstPortal.markerColor, firstMarker);
   }
 
   function selectSecondPortal() {
@@ -151,18 +140,13 @@ var setup = (function (window, document, undefined) {
       secondPortal = portal;
       drawLine();
 
-      secondPortalLink.innerText = misc.secondPortal.text.active;
-      secondPortalLink.title = misc.secondPortal.tooltip.active;
-      secondPortalLink.classList.add(classList.active);
+      updateButtonState(secondPortalLink, misc.secondPortal, true);
 
       otherPortalLink.classList.remove(classList.hidden);
       autoModeLink.classList.remove(classList.hidden);
     }
 
-    if (secondMarker) {
-      groups.markers.removeLayer(secondMarker);
-    }
-    secondMarker = drawMarker(portal, misc.secondPortal.markerColor);
+    secondMarker = drawMarker(portal, misc.secondPortal.markerColor, secondMarker);
   }
 
   function onPortalSelected(e) {
@@ -170,14 +154,14 @@ var setup = (function (window, document, undefined) {
 
     if (portalSelectionPending && e && e.selectedPortalGuid !== e.unselectedPortalGuid) {
       clearTimeout(portalSelectionPending);
-      portalSelectionPending = null;
+      portalSelectionPending = undefined;
     }
 
     if (!portalSelectionPending) {
       selectOtherPortal();
 
       portalSelectionPending = setTimeout(() => {
-        portalSelectionPending = null;
+        portalSelectionPending = undefined;
       }, 500);
     }
   }
@@ -196,11 +180,15 @@ var setup = (function (window, document, undefined) {
     drawLine(portal);
   }
 
-  function drawMarker(portal, color) {
+  function drawMarker(portal, color, existingMarker) {
     var options = {
       icon: window.plugin.drawTools.getMarkerIcon(color),
       zIndexOffset: 2000
     };
+
+    if (existingMarker) {
+      groups.markers.removeLayer(existingMarker);
+    }
 
     var marker = L.marker(portal.ll, options);
     marker.on('click', function () { renderPortalDetails(portal.guid); });
@@ -319,6 +307,18 @@ var setup = (function (window, document, undefined) {
     }
   }
 
+  function updateButtonState(buttonLink, data, isActive) {
+    if (isActive) {
+      buttonLink.innerText = data.text.active;
+      buttonLink.title = data.tooltip.active;
+      buttonLink.classList.add(classList.active);
+    } else {
+      buttonLink.innerText = data.text.init;
+      buttonLink.title = data.tooltip.init;
+      buttonLink.classList.remove(classList.active);
+    }
+  }
+
   function setup() {
     var parent, control, section, toolbar, button, autoModeLi, clearLi,
       firstPortalLi, secondPortalLi, otherPortalLi;
@@ -359,15 +359,13 @@ var setup = (function (window, document, undefined) {
     clearLi.appendChild(clearLink);
 
     firstPortalLink = document.createElement('a');
-    firstPortalLink.innerText = misc.firstPortal.text.init;
-    firstPortalLink.title = misc.firstPortal.tooltip.init;
+    updateButtonState(firstPortalLink, misc.firstPortal, false);
     firstPortalLink.addEventListener('click', selectFirstPortal, false);
     firstPortalLi = document.createElement('li');
     firstPortalLi.appendChild(firstPortalLink);
 
     secondPortalLink = document.createElement('a');
-    secondPortalLink.innerText = misc.secondPortal.text.init;
-    secondPortalLink.title = misc.secondPortal.tooltip.init;
+    updateButtonState(secondPortalLink, misc.secondPortal, false);
     secondPortalLink.className = classList.hidden;
     secondPortalLink.addEventListener('click', selectSecondPortal, false);
     secondPortalLi = document.createElement('li');
