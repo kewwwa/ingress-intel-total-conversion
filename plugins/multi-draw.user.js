@@ -94,6 +94,22 @@ var setup = (function (window, document, undefined) {
     }
   }
 
+  function triggerAutoMode() {
+    if (!selectedPortal) {
+      return;
+    }
+
+    actions.classList.remove(classList.hidden);
+
+    if (!firstPortal) {
+      selectFirstPortal();
+    } else if (!secondPortal) {
+      selectSecondPortal();
+    } else {
+      selectOtherPortal();
+    }
+  }
+
   function selectFirstPortal() {
     var portal = getPortalSelected();
     if (!portal) {
@@ -321,7 +337,7 @@ var setup = (function (window, document, undefined) {
 
   function setup() {
     var parent, control, section, toolbar, button, autoModeLi, clearLi,
-      firstPortalLi, secondPortalLi, otherPortalLi;
+      firstPortalLi, secondPortalLi, otherPortalLi, accessKeyButton;
 
     if (!window.plugin.drawTools) {
       dialog({
@@ -344,7 +360,7 @@ var setup = (function (window, document, undefined) {
     button = document.createElement('a');
     button.className = 'leaflet-multidraw-edit-edit';
     button.addEventListener('click', toggleMenu, false);
-    button.title = 'Draw multi links';
+    button.title = 'Draw multi links [z]';
 
     toolbar = document.createElement('div');
     toolbar.className = 'leaflet-draw-toolbar leaflet-bar';
@@ -384,8 +400,17 @@ var setup = (function (window, document, undefined) {
     autoModeLink.title = 'Add field on each portal selection';
     autoModeLink.className = classList.hidden;
     autoModeLink.addEventListener('click', toggleAutoMode, false);
+
+    accessKeyButton = document.createElement('a');
+    accessKeyButton.innerText = 'Automatic link [z]';
+    accessKeyButton.title = 'Access key button';
+    accessKeyButton.className = classList.hidden;
+    accessKeyButton.accessKey = 'z';
+    accessKeyButton.addEventListener('click', triggerAutoMode, false);
+
     autoModeLi = document.createElement('li');
     autoModeLi.appendChild(autoModeLink);
+    autoModeLi.appendChild(accessKeyButton);
 
     actions = document.createElement('ul');
     actions.className = 'leaflet-draw-actions ' + classList.hidden;
