@@ -6,6 +6,10 @@
     display: none;
 }
 
+.leaflet-control-multidraw .leaflet-draw-actions a {
+    width: inherit;
+}
+
 .leaflet-control-multidraw .leaflet-draw-actions a.active {
     background-color: #008902;
 }

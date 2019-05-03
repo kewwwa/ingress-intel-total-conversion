@@ -344,7 +344,7 @@ var setup = (function (window, document, undefined) {
     if (plugin.isInit) {
       console.warn('Multi draw: already setup');
     }
-    var parent, control, section, toolbar, button, autoModeLi, clearLi,
+    var control, section, toolbar, button, autoModeLi, clearLi,
       firstPortalLi, secondPortalLi, otherPortalLi, accessKeyButton;
 
     if (!window.plugin.drawTools) {
@@ -372,7 +372,7 @@ var setup = (function (window, document, undefined) {
     button.title = 'Draw multi links [z]';
 
     toolbar = document.createElement('div');
-    toolbar.className = 'leaflet-draw-toolbar leaflet-bar';
+    toolbar.className = 'leaflet-bar';
     toolbar.appendChild(button);
 
     clearLink = document.createElement('a');
@@ -439,8 +439,17 @@ var setup = (function (window, document, undefined) {
       'leaflet-control-multidraw leaflet-draw leaflet-control';
     control.appendChild(section);
 
-    parent = $('.leaflet-top.leaflet-left', window.map.getContainer());
-    parent.append(control);
+    L.Control.Multidraw = L.Control.extend({
+      onAdd: function (map) {
+        console.debug('Control added');
+        return control;
+      },
+      onRemove: function (map) {
+        console.debug('Control removed');
+      }
+    });
+
+    map.addControl(new L.Control.Multidraw({ position: 'topleft' }));
 
     plugin.isInit = true;
   }
